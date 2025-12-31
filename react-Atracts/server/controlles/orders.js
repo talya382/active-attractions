@@ -1,16 +1,27 @@
+// ייבוא מודל ההזמנות ממונגוס
 import { OrderModel } from "../moduls/orsers.js";
 
-
+// שליפת כל ההזמנות מהמסד
 export async function GetAllOrders(req, res) {
     try {
-        // Logic to get all orders from the database
+        // שליפת כל ההזמנות
         const orders = await OrderModel.find();
+
+        // החזרת ההזמנות ללקוח
         res.status(200).json(orders);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching orders', error });
+        // שגיאת שרת כללית
+        res.status(500).json({ 
+            message: "Error fetching orders", 
+            error 
+        });
     }
 }
+
+// הוספת הזמנה חדשה
 export const addOrder = async (req, res) => {
+
+    // חילוץ שדות מה־body
     const {
         id,
         targetDate,
@@ -18,93 +29,65 @@ export const addOrder = async (req, res) => {
         customerCode,
         products,
     } = req.body;
+
+    // בדיקה שכל שדות החובה קיימים
     if (!id || !targetDate || !address || !customerCode || !products) {
-        return res.status(400).json({ message: "All fields are required" });
+        return res.status(400).json({
+            message: "All fields are required"
+        });
     }
+
+    // בדיקה שהמוצרים הם מערך ולא ריק
     if (!Array.isArray(products) || products.length === 0) {
-        return res.status(400).json({ message: "Products must be a non-empty array" });
+        return res.status(400).json({
+            message: "Products must be a non-empty array"
+        });
     }
+
+    // בדיקת תקינות לכל מוצר
     for (let p of products) {
-        if (!p.productsId || p.quantity <= 0) {
-            return res.status(400).json({ message: "נתוני מוצר לא תקינים" });
+        if (!p.productId || p.quantity <= 0) {
+            return res.status(400).json({
+                message: "נתוני מוצר לא תקינים"
+            });
         }
     }
+
     try {
-        const newOrder = new order({
+        // יצירת הזמנה חדשה
+        const newOrder = new OrderModel({
             id,
             targetDate,
             address,
             customerCode,
             products
-        })
+        });
+
+        // שמירת ההזמנה במסד
         await newOrder.save();
+
+        // החזרת ההזמנה שנוצרה
         res.status(201).json(newOrder);
+
     } catch (error) {
+        // שגיאת שרת ביצירת הזמנה
         res.status(500).json({
-             message: "Error creating order",
-              error: error.message
-             });
-    }
-};
-export const getOrderById = async (req, res) => {
-    try {
-        const { id } = req.params; // מזהה ההזמנה
-        const { userId } = req.body; // מזהה המשתמש
-
-        if (!userId) {
-            return res.status(400).json({
-                 title: "Bad Request",
-                  message: "userId is required"
-                 });
-        }
-
-        const order = await OrderModel.findOne({ _id: id, userId });
-
-        if (!order) {
-            return res.status(404).json({
-              title: "Order not found", 
-              message: "No such order for this user"
-             });
-        }
-        res.json(order);
-    } catch (err) {
-        return res.status(500).json({
-            title: "Error retrieving order", 
-            message: err.message 
-        });
-    }
-};
-export const updateOrder = async (req, res) => {
-    try{
-        const{id}=req.params; // מזהה ההזמנה
-        const order=await OrderModel.findById(id);
-        if(!order){
-            return res.status(404).json({
-                title:"Order not found",
-                message:"No such order"
-            });
-        }
-        order.isShipped=true;
-        await order.save();
-        return res.json({
-            message: "Order marked as shipped",
-            order
-        });
-    }catch(error){
-        res.status(500).json({
-            message: "Error updating order",
+            message: "Error creating order",
             error: error.message
         });
     }
-}
+};
 
-// פונקציה למחיקת הזמנה
-export const deleteOrder = async (req, res) => {
+// שליפת הזמנה לפי ID (רק אם שייכת למשתמש)
+export const getOrderById = async (req, res) => {
     try {
-        const { id } = req.params;      // מזהה ההזמנה
-        const { userId } = req.body;    // מזהה המשתמש
+        // מזהה ההזמנה מה־URL
+        const { id } = req.params;
 
-        // בדיקה אם userId נשלח
+        // מזהה המשתמש מה־body
+        const { userId } = req.body;
+
+        // בדיקה ש־userId נשלח
         if (!userId) {
             return res.status(400).json({
                 title: "Bad Request",
@@ -112,13 +95,94 @@ export const deleteOrder = async (req, res) => {
             });
         }
 
-        // מחיקת ההזמנה מהמסד רק אם היא שייכת למשתמש
-        const deletedOrder = await OrderModel.findOneAndDelete({
-             _id: id,
-              userId
-             });
+        // חיפוש הזמנה לפי ID ומשתמש
+        const order = await OrderModel.findOne({ 
+            _id: id, 
+            userId 
+        });
 
         // אם ההזמנה לא נמצאה
+        if (!order) {
+            return res.status(404).json({
+                title: "Order not found",
+                message: "No such order for this user"
+            });
+        }
+
+        // החזרת ההזמנה
+        res.json(order);
+
+    } catch (err) {
+        // שגיאת שרת
+        return res.status(500).json({
+            title: "Error retrieving order",
+            message: err.message
+        });
+    }
+};
+
+// עדכון הזמנה – סימון כיצאה למשלוח
+export const updateOrder = async (req, res) => {
+    try {
+        // מזהה ההזמנה
+        const { id } = req.params;
+
+        // חיפוש ההזמנה
+        const order = await OrderModel.findById(id);
+
+        // אם לא נמצאה הזמנה
+        if (!order) {
+            return res.status(404).json({
+                title: "Order not found",
+                message: "No such order"
+            });
+        }
+
+        // סימון ההזמנה כמשולחת
+        order.isShipped = true;
+
+        // שמירת העדכון
+        await order.save();
+
+        // החזרת תוצאה
+        return res.json({
+            message: "Order marked as shipped",
+            order
+        });
+
+    } catch (error) {
+        // שגיאת שרת
+        res.status(500).json({
+            message: "Error updating order",
+            error: error.message
+        });
+    }
+};
+
+// מחיקת הזמנה לפי ID (רק אם שייכת למשתמש)
+export const deleteOrder = async (req, res) => {
+    try {
+        // מזהה ההזמנה
+        const { id } = req.params;
+
+        // מזהה המשתמש
+        const { userId } = req.body;
+
+        // בדיקה ש־userId נשלח
+        if (!userId) {
+            return res.status(400).json({
+                title: "Bad Request",
+                message: "userId is required"
+            });
+        }
+
+        // מחיקת ההזמנה רק אם שייכת למשתמש
+        const deletedOrder = await OrderModel.findOneAndDelete({
+            _id: id,
+            userId
+        });
+
+        // אם לא נמצאה הזמנה למחיקה
         if (!deletedOrder) {
             return res.status(404).json({
                 title: "Order not found",
@@ -126,13 +190,14 @@ export const deleteOrder = async (req, res) => {
             });
         }
 
-        // החזרת מסר הצלחה
+        // החזרת הודעת הצלחה
         return res.json({
             title: "Order deleted",
             message: `Order ${id} was successfully deleted`
         });
 
     } catch (err) {
+        // שגיאת שרת
         return res.status(500).json({
             title: "Error deleting order",
             message: err.message

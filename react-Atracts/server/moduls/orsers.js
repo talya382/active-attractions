@@ -1,47 +1,50 @@
 import mongoose from "mongoose";
 
+// סכימה מינימלית למוצר בהזמנה
 const MinimalProductSchema = new mongoose.Schema({
   productId: {
     type: String,
-    required: true
+    required: true // חובה מזהה מוצר
   },
   quantity: {
     type: Number,
     required: true,
-    min: 1
+    min: 1 // כמות מינימלית
   }
 });
 
+// סכימת ההזמנה
 const orderSchema = new mongoose.Schema({
   id: {
     type: String,
     required: true,
-    unique: true
+    unique: true // מזהה הזמנה ייחודי
   },
   orderDate: {
     type: Date,
-    default: Date.now
+    default: Date.now // תאריך יצירה אוטומטי
   },
   targetDate: {
     type: Date,
-    required: true
+    required: true // תאריך יעד
   },
   address: {
     type: String,
-    required: true
+    required: true // כתובת משלוח
   },
   customerCode: {
     type: String,
-    required: true
+    required: true // קוד לקוח
   },
   products: {
     type: [MinimalProductSchema],
-    required: true
+    required: true // רשימת מוצרים
   },
   isShipped: {
     type: Boolean,
-    default: false
+    default: false // האם נשלחה
   }
 });
 
+// יצירת מודל להזמנות
 export const OrderModel = mongoose.model("orders", orderSchema);

@@ -1,5 +1,7 @@
+// ייבוא express
 import express from "express";
 
+// ייבוא הפונקציות מה־controller
 import {
   GetAllOrders,
   addOrder,
@@ -8,6 +10,7 @@ import {
   deleteOrder
 } from "../controlles/orders.js";
 
+// יצירת Router
 const router = express.Router();
 
 // שליפת כל ההזמנות
@@ -16,15 +19,14 @@ router.get("/", GetAllOrders);
 // שליפת הזמנה לפי ID
 router.get("/:id", getOrderById);
 
-// הוספת הזמנה
+// הוספת הזמנה חדשה
 router.post("/", addOrder);
 
-// מחיקה לפי ID
+// מחיקת הזמנה לפי ID
 router.delete("/:id", deleteOrder);
 
-//   עדכון הזמנה – יצאה לדרך
-
+// עדכון הזמנה – יצאה למשלוח
 router.patch("/:id/ship", updateOrder);
 
-
+// ייצוא ה־router
 export default router;
